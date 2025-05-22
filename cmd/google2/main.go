@@ -464,14 +464,13 @@ func main() {
 	fmt.Println("what")
 	if len(os.Args) < 3 {
 		file_path := "/usr/lib/go/src/go/token/position.go"
-		user_query := "(string)*File"
+		user_query := "() int"
 		functions = google2(user_query, file_path)
 	} else {
 		fmt.Println(os.Args[1])
 		fmt.Println(os.Args[2])
 		// functions = google2(os.Args[1], os.Args[2])
 	}
-
 	for _, fn := range functions {
 		fn_str := fn.String()
 		if fn_str != "(): () " {
