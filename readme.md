@@ -1,6 +1,41 @@
 https://www.youtube.com/watch?v=fv-wlo8yVhk
 why maybe the lesbian distance formula might not be the fit for this
 
+```go
+sort.Slice old but a lot of text
+if user_function_search.Generics != nil {
+	generics := stringify_field_list_without_names(user_function_search.Generics)
+	generics_left := stringify_field_list_without_names(left.Generics)
+	generics_right := stringify_field_list_without_names(right.Generics)
+	left_changes_needed_for_match += lev_distance(generics_left, generics)
+	right_changes_needed_for_match += lev_distance(generics_right, generics)
+}
+if user_function_search.Receiver != nil {
+	receiver := stringify_field_list_without_names(user_function_search.Receiver)
+	receiver_left := stringify_field_list_without_names(left.Receiver)
+	receiver_right := stringify_field_list_without_names(right.Receiver)
+	left_changes_needed_for_match += lev_distance(receiver_left, receiver)
+	right_changes_needed_for_match += lev_distance(receiver_right, receiver)
+}
+
+if user_function_search.Params.List != nil {
+	params := stringify_field_list_without_names(user_function_search.Params)
+	params_left := stringify_field_list_without_names(left.Params)
+	params_right := stringify_field_list_without_names(right.Params)
+	left_changes_needed_for_match += lev_distance(params_left, params)
+	right_changes_needed_for_match += lev_distance(params_right, params)
+}
+
+if user_function_search.Results.List != nil {
+	results := stringify_field_list_without_names(user_function_search.Results)
+	results_left := stringify_field_list_without_names(left.Results)
+	results_right := stringify_field_list_without_names(right.Results)
+	left_changes_needed_for_match += lev_distance(results_left, results)
+	right_changes_needed_for_match += lev_distance(results_right, results)
+}
+
+```
+
 because if i put this input (float) int
 
 the sumf is listed wayyy below, which kinda makes sense because the parameter 

@@ -371,6 +371,23 @@ func parse_user_function_query(query string) (*ast.FuncDecl, error) {
 
 }
 
+func get_lev_distance_from_field_list(target_field_list *ast.FieldList, left_field_list *ast.FieldList, right_field_list *ast.FieldList) (left_changes, right_changes int) {
+	if target_field_list != nil && target_field_list.List != nil {
+		str_list_target := stringify_field_list_without_names(target_field_list)
+		str_list_left := stringify_field_list_without_names(left_field_list)
+		str_list_right := stringify_field_list_without_names(right_field_list)
+		left_changes += lev_distance(str_list_left, str_list_target)
+		right_changes += lev_distance(str_list_right, str_list_target)
+	}
+	return
+}
+
+type List struct {
+	left   *ast.FieldList
+	right  *ast.FieldList
+	target *ast.FieldList
+}
+
 func google2(user_query, file_name string) []Function2 {
 	var fset token.FileSet
 	var flags parser.Mode
@@ -419,43 +436,79 @@ func google2(user_query, file_name string) []Function2 {
 		var left_changes_needed_for_match int
 		var right_changes_needed_for_match int
 
-		if user_function_search.Generics != nil {
-			generics := stringify_field_list_without_names(user_function_search.Generics)
-			generics_left := stringify_field_list_without_names(left.Generics)
-			generics_right := stringify_field_list_without_names(right.Generics)
-			left_changes_needed_for_match += lev_distance(generics_left, generics)
-			right_changes_needed_for_match += lev_distance(generics_right, generics)
+		var field_lists []List
+
+		field_lists = []List{
+			{
+				left.Generics,
+				right.Generics,
+				user_function_search.Generics,
+			},
+			{
+				left.Receiver,
+				right.Receiver,
+				user_function_search.Receiver,
+			},
+			{
+				left.Params,
+				right.Params,
+				user_function_search.Params,
+			},
+			{
+				left.Results,
+				right.Results,
+				user_function_search.Results,
+			},
 		}
 
-		if user_function_search.Receiver != nil {
-			receiver := stringify_field_list_without_names(user_function_search.Receiver)
-			receiver_left := stringify_field_list_without_names(left.Receiver)
-			receiver_right := stringify_field_list_without_names(right.Receiver)
-			left_changes_needed_for_match += lev_distance(receiver_left, receiver)
-			right_changes_needed_for_match += lev_distance(receiver_right, receiver)
+		for _, list := range field_lists {
+			left_changes, right_changes := get_lev_distance_from_field_list(
+				list.target,
+				list.left,
+				list.right,
+			)
+			left_changes_needed_for_match += left_changes
+			right_changes_needed_for_match += right_changes
 		}
 
-		if user_function_search.Params.List != nil {
-			params := stringify_field_list_without_names(user_function_search.Params)
-			params_left := stringify_field_list_without_names(left.Params)
-			params_right := stringify_field_list_without_names(right.Params)
-			left_changes_needed_for_match += lev_distance(params_left, params)
-			right_changes_needed_for_match += lev_distance(params_right, params)
-		}
-
-		if user_function_search.Results.List != nil {
-			results := stringify_field_list_without_names(user_function_search.Results)
-			results_left := stringify_field_list_without_names(left.Results)
-			results_right := stringify_field_list_without_names(right.Results)
-			left_changes_needed_for_match += lev_distance(results_left, results)
-			right_changes_needed_for_match += lev_distance(results_right, results)
-		}
+		// if user_function_search.Generics != nil {
+		// 	generics := stringify_field_list_without_names(user_function_search.Generics)
+		// 	generics_left := stringify_field_list_without_names(left.Generics)
+		// 	generics_right := stringify_field_list_without_names(right.Generics)
+		// 	left_changes_needed_for_match += lev_distance(generics_left, generics)
+		// 	right_changes_needed_for_match += lev_distance(generics_right, generics)
+		// }
+		// if user_function_search.Receiver != nil {
+		// 	receiver := stringify_field_list_without_names(user_function_search.Receiver)
+		// 	receiver_left := stringify_field_list_without_names(left.Receiver)
+		// 	receiver_right := stringify_field_list_without_names(right.Receiver)
+		// 	left_changes_needed_for_match += lev_distance(receiver_left, receiver)
+		// 	right_changes_needed_for_match += lev_distance(receiver_right, receiver)
+		// }
+		//
+		// if user_function_search.Params.List != nil {
+		// 	params := stringify_field_list_without_names(user_function_search.Params)
+		// 	params_left := stringify_field_list_without_names(left.Params)
+		// 	params_right := stringify_field_list_without_names(right.Params)
+		// 	left_changes_needed_for_match += lev_distance(params_left, params)
+		// 	right_changes_needed_for_match += lev_distance(params_right, params)
+		// }
+		//
+		// if user_function_search.Results.List != nil {
+		// 	results := stringify_field_list_without_names(user_function_search.Results)
+		// 	results_left := stringify_field_list_without_names(left.Results)
+		// 	results_right := stringify_field_list_without_names(right.Results)
+		// 	left_changes_needed_for_match += lev_distance(results_left, results)
+		// 	right_changes_needed_for_match += lev_distance(results_right, results)
+		// }
 
 		return left_changes_needed_for_match < right_changes_needed_for_match
 	})
 
 	return functions[:N]
 }
+
+// TODO: add a flag to make it case insensesitive
 
 func main() {
 	// parser2.Hello()
@@ -464,7 +517,7 @@ func main() {
 	fmt.Println("what")
 	if len(os.Args) < 3 {
 		file_path := "/usr/lib/go/src/go/token/position.go"
-		user_query := "() int"
+		user_query := "() *File"
 		functions = google2(user_query, file_path)
 	} else {
 		fmt.Println(os.Args[1])
