@@ -14,7 +14,7 @@ import (
 
 var debug bool
 
-const N = 20
+const N = 10
 
 func stringify_expression(expression ast.Expr) string {
 	switch v := expression.(type) {
@@ -189,8 +189,19 @@ func stringify_field_list_without_names(field_list_container *ast.FieldList) str
 		if i > 0 {
 			builder.WriteString(", ")
 		}
+		// builder.WriteString(fmt.Sprintf("%s", param_type))
 		param_type := stringify_expression(param.Type)
-		builder.WriteString(fmt.Sprintf("%s", param_type))
+		if param.Names != nil {
+			for k := range param.Names {
+				if k > 0 {
+					builder.WriteString(", ")
+				}
+				builder.WriteString(fmt.Sprintf("%s", param_type))
+			}
+		} else {
+			builder.WriteString(fmt.Sprintf("%s", param_type))
+		}
+
 	}
 
 	return builder.String()
@@ -426,7 +437,7 @@ func google2(user_query, file_name string) []Function2 {
 		}
 	}
 
-	log.Println(user_function_normalized)
+	log.Println("[FUZZY SEARCHING]:", user_function_normalized)
 
 	sort.Slice(functions, func(i, j int) bool {
 		left := functions[i]
@@ -471,37 +482,6 @@ func google2(user_query, file_name string) []Function2 {
 			right_changes_needed_for_match += right_changes
 		}
 
-		// if user_function_search.Generics != nil {
-		// 	generics := stringify_field_list_without_names(user_function_search.Generics)
-		// 	generics_left := stringify_field_list_without_names(left.Generics)
-		// 	generics_right := stringify_field_list_without_names(right.Generics)
-		// 	left_changes_needed_for_match += lev_distance(generics_left, generics)
-		// 	right_changes_needed_for_match += lev_distance(generics_right, generics)
-		// }
-		// if user_function_search.Receiver != nil {
-		// 	receiver := stringify_field_list_without_names(user_function_search.Receiver)
-		// 	receiver_left := stringify_field_list_without_names(left.Receiver)
-		// 	receiver_right := stringify_field_list_without_names(right.Receiver)
-		// 	left_changes_needed_for_match += lev_distance(receiver_left, receiver)
-		// 	right_changes_needed_for_match += lev_distance(receiver_right, receiver)
-		// }
-		//
-		// if user_function_search.Params.List != nil {
-		// 	params := stringify_field_list_without_names(user_function_search.Params)
-		// 	params_left := stringify_field_list_without_names(left.Params)
-		// 	params_right := stringify_field_list_without_names(right.Params)
-		// 	left_changes_needed_for_match += lev_distance(params_left, params)
-		// 	right_changes_needed_for_match += lev_distance(params_right, params)
-		// }
-		//
-		// if user_function_search.Results.List != nil {
-		// 	results := stringify_field_list_without_names(user_function_search.Results)
-		// 	results_left := stringify_field_list_without_names(left.Results)
-		// 	results_right := stringify_field_list_without_names(right.Results)
-		// 	left_changes_needed_for_match += lev_distance(results_left, results)
-		// 	right_changes_needed_for_match += lev_distance(results_right, results)
-		// }
-
 		return left_changes_needed_for_match < right_changes_needed_for_match
 	})
 
@@ -514,15 +494,12 @@ func main() {
 	// parser2.Hello()
 	debug = false
 	var functions []Function2
-	fmt.Println("what")
 	if len(os.Args) < 3 {
-		file_path := "/usr/lib/go/src/go/token/position.go"
-		user_query := "() *File"
+		file_path := "/home/marcig/personal/fun/google2/examples/raymath.go"
+		user_query := "(Vector3, float32) Vector2"
 		functions = google2(user_query, file_path)
 	} else {
-		fmt.Println(os.Args[1])
-		fmt.Println(os.Args[2])
-		// functions = google2(os.Args[1], os.Args[2])
+		functions = google2(os.Args[1], os.Args[2])
 	}
 	for _, fn := range functions {
 		fn_str := fn.String()
