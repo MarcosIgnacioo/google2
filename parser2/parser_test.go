@@ -285,7 +285,9 @@ func TestComparing(t *testing.T) {
 }
 
 func TestParseFields(t *testing.T) {
-	p := NewParser2("(int, float64, string, char)")
+	p := NewParser2("(interface {} int boo, float popo, uwu nya caca)")
 	p.next()
-	p.parse_field_list(token.RPAREN)
+	fl, _ := p.parse_field_list(token.RPAREN)
+	str := utils.StringifyFieldList(fl)
+	t.Log(str)
 }

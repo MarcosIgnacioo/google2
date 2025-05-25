@@ -4,13 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
-	"go/parser"
 	"go/token"
 	"log"
 	"os"
 	"sort"
 	"strings"
 
+	"github.com/Marciglez/google2/parser"
 	"github.com/Marciglez/google2/utils"
 )
 
@@ -166,7 +166,7 @@ func parse_raw_string(source string) (f *ast.File, err error) {
 	// because we do this silly thing we dont actually the possibility to actually
 	// pass generics or method declaration which is not great !!!
 	// sooo we might aswell write (steal) our own function declaration go parser
-	source = fmt.Sprintf("package main\n func x%s", source)
+	// source = fmt.Sprintf("package main\n func x%s", source)
 	return parser.ParseFile(&fset, file_path, source, flags)
 }
 
@@ -311,6 +311,7 @@ func uwumain() {
 // TODO: add a flag to make it case insensesitive
 
 func main() {
+	// fmt.Println(parser.ParseQuery())
 	// parser2.Hello()
 	debug = false
 	fmt.Println("hello world")

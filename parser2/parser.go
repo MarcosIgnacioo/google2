@@ -6,6 +6,7 @@ import (
 	"go/scanner"
 	"go/token"
 	"log"
+	"strings"
 )
 
 // most complex input possible
@@ -55,20 +56,54 @@ func (p *Parser2) expect(tok token.Token) token.Pos {
 	return pos
 }
 
+func assert(condition bool, args ...string) {
+	if !condition {
+		if len(args) > 0 {
+			panic(args[0])
+		} else {
+			panic("panicked")
+		}
+	}
+}
+
+// check how this was implemented in donkey language and just steal it from there
 func (p *Parser2) parse_field_list(closing token.Token) (*ast.FieldList, error) {
 	field_list := &ast.FieldList{
 		List: make([]*ast.Field, 0, 12),
 	}
-	for p.tok != closing {
-		field := &ast.Field{Type: ast.NewIdent(p.lit)}
-		field_list.List = append(field_list.List, field)
+
+	var builder strings.Builder
+
+	for i := 0; p.tok != token.COMMA; i += 1 {
+		if i > 0 {
+			builder.WriteString(" ")
+		}
+		builder.WriteString(p.lit)
 		p.next()
-		if p.tok == token.COMMA {
+	}
+
+	field := &ast.Field{Type: ast.NewIdent(builder.String())}
+	field_list.List = append(field_list.List, field)
+
+	builder.Reset()
+
+	for p.tok != closing {
+		p.next()
+		for i := 0; p.tok != token.COMMA && p.tok != token.RPAREN; i += 1 {
+			if i > 0 {
+				builder.WriteString(" ")
+			}
+			builder.WriteString(p.lit)
 			p.next()
 		}
+
+		field := &ast.Field{Type: ast.NewIdent(builder.String())}
+		field_list.List = append(field_list.List, field)
+		builder.Reset()
 	}
+
 	p.expect(closing)
-	return nil, nil
+	return field_list, nil
 }
 
 // regular functions
