@@ -159,31 +159,11 @@ func lev_distance(a, b string) int {
 	return lev_distance_impl(a, b, len(a), len(b), cache)
 }
 
-// func parse_raw_string(source string) (f *ast.File, err error) {
-// 	var fset token.FileSet
-// 	var flags parser.Mode
-// 	// var file_path string
-//
-// 	flags |= parser.SkipObjectResolution
-// 	// yeah its scrapping the parser time
-// 	// because we do this silly thing we dont actually the possibility to actually
-// 	// pass generics or method declaration which is not great !!!
-// 	// sooo we might aswell write (steal) our own function declaration go parser
-// 	// source = fmt.Sprintf("package main\n func x%s", source)
-// 	return parser.ParseQuery(&fset, source, flags)
-// }
-
 func parse_user_function_query(query string) (*ast.FuncDecl, error) {
 	var fset token.FileSet
 	var flags parser.Mode
-	// var file_path string
 
 	flags |= parser.SkipObjectResolution
-	// yeah its scrapping the parser time
-	// because we do this silly thing we dont actually the possibility to actually
-	// pass generics or method declaration which is not great !!!
-	// sooo we might aswell write (steal) our own function declaration go parser
-	// source = fmt.Sprintf("package main\n func x%s", source)
 	return parser.ParseQuery(&fset, query, flags)
 
 }
@@ -244,7 +224,7 @@ func google2(user_query, file_name string, result_len int) []Function2 {
 		}
 	}
 
-	log.Println("[FUZZY SEARCHING]:", user_function_normalized)
+	fmt.Println("[FUZZY SEARCHING]:", user_function_normalized)
 
 	sort.Slice(functions, func(i, j int) bool {
 		left := functions[i]
@@ -295,26 +275,12 @@ func google2(user_query, file_name string, result_len int) []Function2 {
 	return functions[:result_len]
 }
 
-func uwumain() {
-	user_query := "(float32) Vector2"
-	fndecl, _ := parse_user_function_query(user_query)
-	fmt.Println(fndecl.Recv)
-	fmt.Println(fndecl.Type.TypeParams)
-	fmt.Println(fndecl.Type.Params)
-	fmt.Println(fndecl.Type.Results)
-}
-
 // TODO: add a flag to make it case insensesitive
-
 func main() {
-	// fmt.Println(parser.ParseQuery())
-	// parser2.Hello()
 	debug = false
-	fmt.Println("hello world")
 	var functions []Function2
 
 	if len(os.Args) < 3 {
-		// file_path := "/home/marcig/personal/fun/google2/examples/raymath.go"
 		file_path := "/home/marcig/personal/fun/google2/parser/parser.go"
 		user_query := "()()*parser"
 		functions = google2(user_query, file_path, 10)
