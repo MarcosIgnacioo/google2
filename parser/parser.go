@@ -1,4 +1,5 @@
 // Copyright 2009 The Go Authors. All rights reserved.
+// and now meeee :3
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -13,7 +14,7 @@
 // treated like an ordinary parameter list and thus may contain multiple
 // entries where the spec permits exactly one. Consequently, the corresponding
 // field in the AST (ast.FuncDecl.Recv) field is not restricted to one entry.
-package parser2
+package parser
 
 import (
 	"fmt"
@@ -872,7 +873,6 @@ func (p *parser) parseParamDecl(name *ast.Ident, typeSetsOK bool) (f field) {
 	return
 }
 
-// basically this but WAAY shorter cause i dont reallly care about the user parameter names just the types
 func (p *parser) parseParameterList(name0 *ast.Ident, typ0 ast.Expr, closing token.Token) (params []*ast.Field) {
 	if p.trace {
 		defer un(trace(p, "ParameterList"))
@@ -880,13 +880,6 @@ func (p *parser) parseParameterList(name0 *ast.Ident, typ0 ast.Expr, closing tok
 
 	// Type parameters are the only parameter list closed by ']'.
 	tparams := closing == token.RBRACK
-
-	pos0 := p.pos
-	if name0 != nil {
-		pos0 = name0.Pos()
-	} else if typ0 != nil {
-		pos0 = typ0.Pos()
-	}
 
 	// Note: The code below matches the corresponding code in the syntax
 	//       parser closely. Changes must be reflected in either parser.
@@ -939,23 +932,26 @@ func (p *parser) parseParameterList(name0 *ast.Ident, typ0 ast.Expr, closing tok
 				par.name = nil
 			}
 		}
-		if tparams {
-			// This is the same error handling as below, adjusted for type parameters only.
-			// See comment below for details. (go.dev/issue/64534)
-			var errPos token.Pos
-			var msg string
-			if named == typed /* same as typed == 0 */ {
-				errPos = p.pos // position error at closing ]
-				msg = "missing type constraint"
-			} else {
-				errPos = pos0 // position at opening [ or first name
-				msg = "missing type parameter name"
-				if len(list) == 1 {
-					msg += " or invalid array length"
-				}
-			}
-			p.error(errPos, msg)
-		}
+		// this is removed so in the query search i can just not put identifiers to the generic types
+		// which causes a little small problem when parsing files which have invalid generic types but
+		// i dont really care about that, if the file you are searching in is badly written your baddddd
+		// if tparams {
+		// 	// This is the same error handling as below, adjusted for type parameters only.
+		// 	// See comment below for details. (go.dev/issue/64534)
+		// 	var errPos token.Pos
+		// 	var msg string
+		// 	if named == typed /* same as typed == 0 */ {
+		// 		errPos = p.pos // position error at closing ]
+		// 		msg = "missing type constraint"
+		// 	} else {
+		// 		errPos = pos0 // position at opening [ or first name
+		// 		msg = "missing type parameter name"
+		// 		if len(list) == 1 {
+		// 			msg += " or invalid array length"
+		// 		}
+		// 	}
+		// 	p.error(errPos, msg)
+		// }
 	} else if named != len(list) {
 		// some named or we're in a type parameter list => all must be named
 		var errPos token.Pos // left-most error position (or invalid)
@@ -2762,7 +2758,7 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction) *ast.Gen
 	}
 }
 
-func (p *parser) parseFuncDecl(isMethod bool) *ast.FuncDecl {
+func (p *parser) parseFuncDecl() *ast.FuncDecl {
 	if p.trace {
 		defer un(trace(p, "FunctionDecl"))
 	}
@@ -2771,12 +2767,11 @@ func (p *parser) parseFuncDecl(isMethod bool) *ast.FuncDecl {
 	pos := p.expect(token.FUNC)
 
 	var recv *ast.FieldList
-
-	if isMethod {
-		if p.tok == token.LPAREN {
-			_, recv = p.parseParameters(false)
-		}
+	if p.tok == token.LPAREN {
+		_, recv = p.parseParameters(false)
 	}
+
+	ident := p.parseIdent()
 
 	tparams, params := p.parseParameters(true)
 	if recv != nil && tparams != nil {
@@ -2787,23 +2782,34 @@ func (p *parser) parseFuncDecl(isMethod bool) *ast.FuncDecl {
 	}
 	results := p.parseResult()
 
-	ident := ast.Ident{
-		NamePos: 0,
-		Name:    "",
-		Obj:     nil,
+	var body *ast.BlockStmt
+	switch p.tok {
+	case token.LBRACE:
+		body = p.parseBody()
+		p.expectSemi()
+	case token.SEMICOLON:
+		p.next()
+		if p.tok == token.LBRACE {
+			// opening { of function declaration on next line
+			p.error(p.pos, "unexpected semicolon or newline before {")
+			body = p.parseBody()
+			p.expectSemi()
+		}
+	default:
+		p.expectSemi()
 	}
 
 	decl := &ast.FuncDecl{
 		Doc:  doc,
 		Recv: recv,
-		Name: &ident,
+		Name: ident,
 		Type: &ast.FuncType{
 			Func:       pos,
 			TypeParams: tparams,
 			Params:     params,
 			Results:    results,
 		},
-		Body: nil,
+		Body: body,
 	}
 	return decl
 }
@@ -2933,11 +2939,100 @@ func packIndexExpr(x ast.Expr, lbrack token.Pos, exprs []ast.Expr, rbrack token.
 	}
 }
 
-func ParseFuncSignature(source string) *ast.FuncDecl {
+func (p *parser) parseQuery() (function *ast.FuncDecl) {
+	if p.trace {
+		defer un(trace(p, "Query FunctionDecl"))
+	}
 
-	return nil
+	var first *ast.FieldList
+	var recv *ast.FieldList
+	var params *ast.FieldList
+	var generics *ast.FieldList
+
+	if p.tok == token.LBRACK {
+		generics, first = p.parseParameters(true)
+	} else if p.tok == token.LPAREN {
+		_, first = p.parseParameters(false)
+	}
+
+	if p.tok == token.LPAREN {
+		recv = first
+		_, params = p.parseParameters(false)
+	} else {
+		params = first
+	}
+
+	if recv != nil && generics != nil {
+		// Method declarations do not have type parameters. We parse them for a
+		// better error message and improved error recovery.
+		p.error(generics.Opening, "method must have no type parameters")
+		generics = nil
+	}
+
+	results := p.parseResult()
+
+	decl := &ast.FuncDecl{
+		Doc:  nil,
+		Recv: recv,
+		Name: nil,
+		Type: &ast.FuncType{
+			Func:       token.NoPos,
+			TypeParams: generics,
+			Params:     params,
+			Results:    results,
+		},
+		Body: nil,
+	}
+	return decl
 }
 
-func Hello() {
-	fmt.Println("hello from parser2")
+func ParseQuery(fset *token.FileSet, src any, mode Mode) (funcDeclaration *ast.FuncDecl, err error) {
+	filename := "User_Query"
+	if fset == nil {
+		panic("parser.ParseFile: no token.FileSet provided (fset == nil)")
+	}
+
+	// get source
+	text, err := readSource(filename, src)
+	if err != nil {
+		return nil, err
+	}
+
+	file := fset.AddFile(filename, -1, len(text))
+
+	var p parser
+	defer func() {
+		if e := recover(); e != nil {
+			// resume same panic if it's not a bailout
+			bail, ok := e.(bailout)
+			if !ok {
+				panic(e)
+			} else if bail.msg != "" {
+				p.errors.Add(p.file.Position(bail.pos), bail.msg)
+			}
+		}
+
+		// set result values
+		if funcDeclaration == nil {
+			// source is not a valid Go source file - satisfy
+			// ParseFile API and return a valid (but) empty
+			// *ast.File
+			funcDeclaration = &ast.FuncDecl{
+				Name: new(ast.Ident),
+			}
+		}
+
+		// Ensure the start/end are consistent,
+		// whether parsing succeeded or not.
+		p.errors.Sort()
+		err = p.errors.Err()
+	}()
+
+	// parse source
+	p.init(file, text, mode)
+	funcDeclaration = p.parseQuery()
+	return
+}
+
+func print_array[T interface{ String() string }](array []T) {
 }

@@ -1,4 +1,23 @@
 https://www.youtube.com/watch?v=fv-wlo8yVhk
+because golang is an AMAZING language it allow us to do some cool stuff like this
+
+func foo(a,b,c, int) float32
+
+which is good for programming but for our amazin query language is kinda of a pain in the asssss
+
+and u might be wondering WHYYY
+because in the query language we just wanna specify the types
+
+and this function translates to in our stringifying
+(int) float32
+which is incorrect!!!
+
+it should be 
+(int, int, int) float32
+so when signature stringifying even if we do not account the names we also need to keep in mind the amount of parameters of
+the same type so it outputs the right thing, which is the thing above
+so thats our goal today
+
 why maybe the lesbian distance formula might not be the fit for this
 
 ```go
