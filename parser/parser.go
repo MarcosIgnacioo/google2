@@ -881,13 +881,6 @@ func (p *parser) parseParameterList(name0 *ast.Ident, typ0 ast.Expr, closing tok
 	// Type parameters are the only parameter list closed by ']'.
 	tparams := closing == token.RBRACK
 
-	pos0 := p.pos
-	if name0 != nil {
-		pos0 = name0.Pos()
-	} else if typ0 != nil {
-		pos0 = typ0.Pos()
-	}
-
 	// Note: The code below matches the corresponding code in the syntax
 	//       parser closely. Changes must be reflected in either parser.
 	//       For the code to match, we use the local []field list that
@@ -939,23 +932,26 @@ func (p *parser) parseParameterList(name0 *ast.Ident, typ0 ast.Expr, closing tok
 				par.name = nil
 			}
 		}
-		if tparams {
-			// This is the same error handling as below, adjusted for type parameters only.
-			// See comment below for details. (go.dev/issue/64534)
-			var errPos token.Pos
-			var msg string
-			if named == typed /* same as typed == 0 */ {
-				errPos = p.pos // position error at closing ]
-				msg = "missing type constraint"
-			} else {
-				errPos = pos0 // position at opening [ or first name
-				msg = "missing type parameter name"
-				if len(list) == 1 {
-					msg += " or invalid array length"
-				}
-			}
-			p.error(errPos, msg)
-		}
+		// this is removed so in the query search i can just not put identifiers to the generic types
+		// which causes a little small problem when parsing files which have invalid generic types but
+		// i dont really care about that, if the file you are searching in is badly written your baddddd
+		// if tparams {
+		// 	// This is the same error handling as below, adjusted for type parameters only.
+		// 	// See comment below for details. (go.dev/issue/64534)
+		// 	var errPos token.Pos
+		// 	var msg string
+		// 	if named == typed /* same as typed == 0 */ {
+		// 		errPos = p.pos // position error at closing ]
+		// 		msg = "missing type constraint"
+		// 	} else {
+		// 		errPos = pos0 // position at opening [ or first name
+		// 		msg = "missing type parameter name"
+		// 		if len(list) == 1 {
+		// 			msg += " or invalid array length"
+		// 		}
+		// 	}
+		// 	p.error(errPos, msg)
+		// }
 	} else if named != len(list) {
 		// some named or we're in a type parameter list => all must be named
 		var errPos token.Pos // left-most error position (or invalid)
@@ -2948,29 +2944,40 @@ func (p *parser) parseQuery() (function *ast.FuncDecl) {
 		defer un(trace(p, "Query FunctionDecl"))
 	}
 
+	var first *ast.FieldList
 	var recv *ast.FieldList
-	if p.tok == token.LPAREN {
-		_, recv = p.parseParameters(false)
+	var params *ast.FieldList
+	var generics *ast.FieldList
+
+	if p.tok == token.LBRACK {
+		generics, first = p.parseParameters(true)
+	} else if p.tok == token.LPAREN {
+		_, first = p.parseParameters(false)
 	}
 
-	ident := p.parseIdent()
+	if p.tok == token.LPAREN {
+		recv = first
+		_, params = p.parseParameters(false)
+	} else {
+		params = first
+	}
 
-	tparams, params := p.parseParameters(true)
-	if recv != nil && tparams != nil {
+	if recv != nil && generics != nil {
 		// Method declarations do not have type parameters. We parse them for a
 		// better error message and improved error recovery.
-		p.error(tparams.Opening, "method must have no type parameters")
-		tparams = nil
+		p.error(generics.Opening, "method must have no type parameters")
+		generics = nil
 	}
+
 	results := p.parseResult()
 
 	decl := &ast.FuncDecl{
 		Doc:  nil,
 		Recv: recv,
-		Name: ident,
+		Name: nil,
 		Type: &ast.FuncType{
 			Func:       token.NoPos,
-			TypeParams: tparams,
+			TypeParams: generics,
 			Params:     params,
 			Results:    results,
 		},
@@ -3024,6 +3031,8 @@ func ParseQuery(fset *token.FileSet, src any, mode Mode) (funcDeclaration *ast.F
 	// parse source
 	p.init(file, text, mode)
 	funcDeclaration = p.parseQuery()
-
 	return
+}
+
+func print_array[T interface{ String() string }](array []T) {
 }

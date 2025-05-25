@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -16,7 +15,7 @@ import (
 
 var debug bool
 
-const N = 10
+const N = 1
 
 type Function2 struct {
 	FileName     string
@@ -64,8 +63,12 @@ func (f Function2) SignatureString() string {
 func parse_ast_func_decl(fset *token.FileSet, func_decl *ast.FuncDecl) Function2 {
 	var fun Function2
 	if fset == nil {
+		var name string
+		if func_decl.Name != nil {
+			name = func_decl.Name.Name
+		}
 		fun = Function2{
-			FunctionName: func_decl.Name.Name,
+			FunctionName: name,
 			Generics:     (func_decl.Type.TypeParams),
 			Receiver:     (func_decl.Recv),
 			Params:       (func_decl.Type.Params),
@@ -156,10 +159,24 @@ func lev_distance(a, b string) int {
 	return lev_distance_impl(a, b, len(a), len(b), cache)
 }
 
-func parse_raw_string(source string) (f *ast.File, err error) {
+// func parse_raw_string(source string) (f *ast.File, err error) {
+// 	var fset token.FileSet
+// 	var flags parser.Mode
+// 	// var file_path string
+//
+// 	flags |= parser.SkipObjectResolution
+// 	// yeah its scrapping the parser time
+// 	// because we do this silly thing we dont actually the possibility to actually
+// 	// pass generics or method declaration which is not great !!!
+// 	// sooo we might aswell write (steal) our own function declaration go parser
+// 	// source = fmt.Sprintf("package main\n func x%s", source)
+// 	return parser.ParseQuery(&fset, source, flags)
+// }
+
+func parse_user_function_query(query string) (*ast.FuncDecl, error) {
 	var fset token.FileSet
 	var flags parser.Mode
-	var file_path string
+	// var file_path string
 
 	flags |= parser.SkipObjectResolution
 	// yeah its scrapping the parser time
@@ -167,29 +184,7 @@ func parse_raw_string(source string) (f *ast.File, err error) {
 	// pass generics or method declaration which is not great !!!
 	// sooo we might aswell write (steal) our own function declaration go parser
 	// source = fmt.Sprintf("package main\n func x%s", source)
-	return parser.ParseFile(&fset, file_path, source, flags)
-}
-
-func parse_user_function_query(query string) (*ast.FuncDecl, error) {
-	query_ast, err := parse_raw_string(query)
-
-	if err != nil {
-		return nil, err
-	}
-
-	func_declarations := query_ast.Decls
-
-	if len(func_declarations) < 1 {
-		err = errors.New("not a single declaration in query")
-		return nil, err
-	}
-
-	if func_declaration, ok := func_declarations[0].(*ast.FuncDecl); ok {
-		return func_declaration, nil
-	} else {
-		err = errors.New("query input isnt a function declaration")
-		return nil, err
-	}
+	return parser.ParseQuery(&fset, query, flags)
 
 }
 
@@ -210,7 +205,7 @@ type List struct {
 	target *ast.FieldList
 }
 
-func google2(user_query, file_name string) []Function2 {
+func google2(user_query, file_name string, result_len int) []Function2 {
 	var fset token.FileSet
 	var flags parser.Mode
 	var user_function_search Function2
@@ -220,6 +215,7 @@ func google2(user_query, file_name string) []Function2 {
 	query_ast, err := parse_user_function_query(user_query)
 
 	if err != nil {
+		log.Println(user_query)
 		panic(err)
 	}
 	// defer delete(query_ast)
@@ -296,7 +292,7 @@ func google2(user_query, file_name string) []Function2 {
 		return left_changes_needed_for_match < right_changes_needed_for_match
 	})
 
-	return functions[:N]
+	return functions[:result_len]
 }
 
 func uwumain() {
@@ -318,11 +314,12 @@ func main() {
 	var functions []Function2
 
 	if len(os.Args) < 3 {
-		file_path := "/home/marcig/personal/fun/google2/examples/raymath.go"
-		user_query := "(float32) Vector2"
-		functions = google2(user_query, file_path)
+		// file_path := "/home/marcig/personal/fun/google2/examples/raymath.go"
+		file_path := "/home/marcig/personal/fun/google2/parser/parser.go"
+		user_query := "()()*parser"
+		functions = google2(user_query, file_path, 10)
 	} else {
-		functions = google2(os.Args[1], os.Args[2])
+		functions = google2(os.Args[1], os.Args[2], 10)
 	}
 
 	for _, fn := range functions {

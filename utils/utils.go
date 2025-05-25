@@ -90,7 +90,7 @@ func StringifyExpression(expression ast.Expr) string {
 				count = StringifyExpression(v.Len)
 			}
 			array_type := StringifyExpression(v.Elt)
-			return fmt.Sprintf("%s[%s]", array_type, count)
+			return fmt.Sprintf("[%s]%s", count, array_type)
 		}
 	case *ast.FuncType:
 		{
