@@ -10,202 +10,13 @@ import (
 	"os"
 	"sort"
 	"strings"
+
+	"github.com/Marciglez/google2/utils"
 )
 
 var debug bool
 
 const N = 10
-
-func stringify_expression(expression ast.Expr) string {
-	switch v := expression.(type) {
-	// case *ast.ChanType:
-	// 	fallthrough
-	// case *ast.InterfaceType:
-	// 	fallthrough
-	// case *ast.StructType:
-	// 	fallthrough
-	// case *ast.KeyValueExpr:
-	// 	fallthrough
-	// case *ast.CompositeLit:
-	// 	fallthrough
-	// case *ast.IndexListExpr:
-	// 	fallthrough
-	// case *ast.SliceExpr:
-	// 	fallthrough
-	// case *ast.TypeAssertExpr:
-	// 	fallthrough
-	// case *ast.CallExpr:
-	// 	fallthrough
-	// case *ast.UnaryExpr:
-	// 	fallthrough
-
-	case *ast.ParenExpr:
-		{
-			expr := stringify_expression(v.X)
-			return fmt.Sprintf("%s", expr)
-		}
-	case *ast.BinaryExpr:
-		{
-			left := stringify_expression(v.X)
-			right := stringify_expression(v.Y)
-			return fmt.Sprintf("%s %s %s", left, v.Op.String(), right)
-		}
-	case *ast.FuncLit:
-		{
-			return stringify_expression(v.Type)
-		}
-	case *ast.InterfaceType:
-		{
-			return "interface{}"
-		}
-	case *ast.BadExpr:
-		log.Fatalf("Expression not supported jijiji %v", v)
-		return "[NOT SUPPORTED]"
-	case *ast.IndexExpr:
-		{
-			exp := stringify_expression(v.X)
-			index := stringify_expression(v.Index)
-			return fmt.Sprintf("%s[%s]", exp, index)
-		}
-	case *ast.Ident:
-		{
-			return v.Name
-		}
-	case *ast.Ellipsis:
-		{
-			elipsis_type := stringify_expression(v.Elt)
-			return fmt.Sprintf("...%s", elipsis_type)
-		}
-	case *ast.SelectorExpr:
-		{
-			selector_expr := stringify_expression(v.X)
-			return fmt.Sprintf("%s.%s", selector_expr, v.Sel.Name)
-		}
-	case *ast.StarExpr:
-		{
-			star_expr := stringify_expression(v.X)
-			return fmt.Sprintf("*%s", star_expr)
-		}
-	case *ast.ArrayType:
-		{
-			var count string
-			if v.Len != nil {
-				count = stringify_expression(v.Len)
-			}
-			array_type := stringify_expression(v.Elt)
-			return fmt.Sprintf("%s[%s]", array_type, count)
-		}
-	case *ast.FuncType:
-		{
-			var params strings.Builder
-			var results strings.Builder
-			append_field_list(&params, v.Params)
-			append_field_list(&results, v.Results)
-			return fmt.Sprintf("func (%s) %s", params.String(), results.String())
-		}
-	case *ast.MapType:
-		{
-			key := stringify_expression(v.Key)
-			value := stringify_expression(v.Value)
-			return fmt.Sprintf("map[%s]%s", key, value)
-		}
-	case *ast.BasicLit:
-		{
-			kind := v.Kind.String()
-			value := v.Value
-			return fmt.Sprintf("%s %s", value, kind)
-		}
-	default:
-		{
-			log.Fatal("[ERROR]:", v)
-			panic("nimodo")
-		}
-	}
-}
-
-func append_field_list(builder *strings.Builder, field_list_container *ast.FieldList) {
-	if field_list_container == nil {
-		return
-	}
-	field_list := field_list_container.List
-	for i, param := range field_list {
-		if i > 0 {
-			builder.WriteString(",")
-		}
-		for k, param_name := range param.Names {
-			if k > 0 {
-				builder.WriteString(",")
-			}
-			_, err := builder.WriteString(fmt.Sprintf("%s ", param_name.Name))
-			if err != nil {
-				fmt.Println("an error has happened unu")
-			}
-		}
-		param_type := stringify_expression(param.Type)
-		_, err := builder.WriteString(fmt.Sprintf("%s", param_type))
-		if err != nil {
-			fmt.Println("[ERROR]:an error has happened unu")
-		}
-	}
-}
-
-// todo make just two functions one for stringify without names and one with them, because
-// the if is making me itchy
-func stringify_field_list(field_list_container *ast.FieldList) string {
-	var builder strings.Builder
-
-	if field_list_container == nil {
-		return ""
-	}
-	field_list := field_list_container.List
-	for i, param := range field_list {
-		if i > 0 {
-			builder.WriteString(", ")
-		}
-		for k, param_name := range param.Names {
-			if k > 0 {
-				builder.WriteString(", ")
-			}
-			builder.WriteString(fmt.Sprintf("%s", param_name.Name))
-		}
-		if len(param.Names) > 0 {
-			builder.WriteString(" ")
-		}
-		param_type := stringify_expression(param.Type)
-		builder.WriteString(fmt.Sprintf("%s", param_type))
-	}
-
-	return builder.String()
-}
-
-func stringify_field_list_without_names(field_list_container *ast.FieldList) string {
-	var builder strings.Builder
-
-	if field_list_container == nil {
-		return ""
-	}
-	field_list := field_list_container.List
-	for i, param := range field_list {
-		if i > 0 {
-			builder.WriteString(", ")
-		}
-		// builder.WriteString(fmt.Sprintf("%s", param_type))
-		param_type := stringify_expression(param.Type)
-		if param.Names != nil {
-			for k := range param.Names {
-				if k > 0 {
-					builder.WriteString(", ")
-				}
-				builder.WriteString(fmt.Sprintf("%s", param_type))
-			}
-		} else {
-			builder.WriteString(fmt.Sprintf("%s", param_type))
-		}
-
-	}
-
-	return builder.String()
-}
 
 type Function2 struct {
 	FileName     string
@@ -224,28 +35,28 @@ func (f Function2) String() string {
 		builder.WriteString(f.FileName + " ")
 	}
 	if f.Receiver != nil {
-		builder.WriteString("(" + stringify_field_list(f.Receiver) + ") ")
+		builder.WriteString("(" + utils.StringifyFieldList(f.Receiver) + ") ")
 	}
 	builder.WriteString(f.FunctionName)
 	if f.Generics != nil {
-		builder.WriteString("[" + stringify_field_list(f.Generics) + "]")
+		builder.WriteString("[" + utils.StringifyFieldList(f.Generics) + "]")
 
 	}
-	builder.WriteString("(" + stringify_field_list(f.Params) + ")")
-	builder.WriteString(": (" + stringify_field_list(f.Results) + ") ")
+	builder.WriteString("(" + utils.StringifyFieldList(f.Params) + ")")
+	builder.WriteString(": (" + utils.StringifyFieldList(f.Results) + ") ")
 	return builder.String()
 }
 
 func (f Function2) SignatureString() string {
 	var builder strings.Builder
 	if f.Receiver != nil {
-		builder.WriteString("(" + stringify_field_list_without_names(f.Receiver) + ") ")
+		builder.WriteString("(" + utils.StringifyFieldListNoNames(f.Receiver) + ") ")
 	}
 	if f.Generics != nil {
-		builder.WriteString("[" + stringify_field_list_without_names(f.Generics) + "]")
+		builder.WriteString("[" + utils.StringifyFieldListNoNames(f.Generics) + "]")
 	}
-	builder.WriteString("(" + stringify_field_list_without_names(f.Params) + ")")
-	builder.WriteString(": (" + stringify_field_list_without_names(f.Results) + ") ")
+	builder.WriteString("(" + utils.StringifyFieldListNoNames(f.Params) + ")")
+	builder.WriteString(": (" + utils.StringifyFieldListNoNames(f.Results) + ") ")
 	return builder.String()
 }
 
@@ -384,9 +195,9 @@ func parse_user_function_query(query string) (*ast.FuncDecl, error) {
 
 func get_lev_distance_from_field_list(target_field_list *ast.FieldList, left_field_list *ast.FieldList, right_field_list *ast.FieldList) (left_changes, right_changes int) {
 	if target_field_list != nil && target_field_list.List != nil {
-		str_list_target := stringify_field_list_without_names(target_field_list)
-		str_list_left := stringify_field_list_without_names(left_field_list)
-		str_list_right := stringify_field_list_without_names(right_field_list)
+		str_list_target := utils.StringifyFieldListNoNames(target_field_list)
+		str_list_left := utils.StringifyFieldListNoNames(left_field_list)
+		str_list_right := utils.StringifyFieldListNoNames(right_field_list)
 		left_changes += lev_distance(str_list_left, str_list_target)
 		right_changes += lev_distance(str_list_right, str_list_target)
 	}
@@ -488,23 +299,33 @@ func google2(user_query, file_name string) []Function2 {
 	return functions[:N]
 }
 
+func uwumain() {
+	user_query := "(float32) Vector2"
+	fndecl, _ := parse_user_function_query(user_query)
+	fmt.Println(fndecl.Recv)
+	fmt.Println(fndecl.Type.TypeParams)
+	fmt.Println(fndecl.Type.Params)
+	fmt.Println(fndecl.Type.Results)
+}
+
 // TODO: add a flag to make it case insensesitive
 
 func main() {
 	// parser2.Hello()
 	debug = false
+	fmt.Println("hello world")
 	var functions []Function2
+
 	if len(os.Args) < 3 {
 		file_path := "/home/marcig/personal/fun/google2/examples/raymath.go"
-		user_query := "(Vector3, float32) Vector2"
+		user_query := "(float32) Vector2"
 		functions = google2(user_query, file_path)
 	} else {
 		functions = google2(os.Args[1], os.Args[2])
 	}
+
 	for _, fn := range functions {
 		fn_str := fn.String()
-		if fn_str != "(): () " {
-			fmt.Println(fn_str)
-		}
+		fmt.Println(fn_str)
 	}
 }
